@@ -5,6 +5,7 @@
 #include <GameFramework/PlayerInput.h>
 #include <Engine/World.h>
 #include <GameFramework/PlayerController.h>
+#include <UnrealNetwork.h>
 
 
 ASCharacter::ASCharacter(const FObjectInitializer &ObjectInitializer)
@@ -14,7 +15,7 @@ ASCharacter::ASCharacter(const FObjectInitializer &ObjectInitializer)
 
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationRoll = false;
-	bUseControllerRotationYaw = false;
+	bUseControllerRotationYaw = true;
 
 	CameraSprintArm = CreateDefaultSubobject<USpringArmComponent>("CameraSprintArm");
 	Camera = CreateDefaultSubobject<UCameraComponent>("Camera");
@@ -55,38 +56,22 @@ void ASCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	//FInputActionKeyMapping UseKey("Use", EKeys::E);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddActionMapping(UseKey);
-	//FInputActionKeyMapping JumpKey("Jump", EKeys::SpaceBar);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddActionMapping(JumpKey);
-	//FInputActionKeyMapping FireKey("Fire", EKeys::LeftMouseButton);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddActionMapping(FireKey);
-	//FInputActionKeyMapping TargetingKey("Targeting", EKeys::RightMouseButton);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddActionMapping(TargetingKey);
-	//FInputActionKeyMapping SprintHoldKey("SprintHold", EKeys::LeftShift);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddActionMapping(SprintHoldKey);
-	//FInputActionKeyMapping CrouchToggleKey("CrouchToggle", EKeys::LeftControl);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddActionMapping(CrouchToggleKey);
-	//FInputActionKeyMapping CrouchToggleKey_1("CrouchToggle", EKeys::C);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddActionMapping(CrouchToggleKey_1);
-
-	//FInputAxisKeyMapping ForwardKey("MoveForward", EKeys::W, 1.0f);
-	//FInputAxisKeyMapping BackKey("MoveForward", EKeys::S, -1.0f);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddAxisMapping(ForwardKey);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddAxisMapping(BackKey);
-	//FInputAxisKeyMapping RightKey("MoveRight", EKeys::D, 1.0f);
-	//FInputAxisKeyMapping LeftKey("MoveRight", EKeys::A, -1.0f);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddAxisMapping(RightKey);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddAxisMapping(LeftKey);
-	//FInputAxisKeyMapping TurnKey("Turn", EKeys::MouseX, 1.0f);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddAxisMapping(TurnKey);
-	//FInputAxisKeyMapping LookupKey("Lookup", EKeys::MouseY, -1.0f);
-	//GetWorld()->GetFirstPlayerController()->PlayerInput->AddAxisMapping(LookupKey);
-
 	PlayerInputComponent->BindAxis("MoveForward", this, &ASCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ASCharacter::MoveRight);
 	PlayerInputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 	PlayerInputComponent->BindAxis("Lookup", this, &APawn::AddControllerPitchInput);
+	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ASCharacter::OnStartJump);
+	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ASCharacter::OnStopJump);
+	PlayerInputComponent->BindAction("CrouchToggle", IE_Released, this, &ASCharacter::OnCrouchToggle);
+}
+
+void ASCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode /* = 0 */)
+{
+	Super::OnMovementModeChanged(PrevMovementMode, PreviousCustomMode);
+
+	if (PrevMovementMode == MOVE_Falling && GetCharacterMovement()->MovementMode != MOVE_Falling) {
+		SetIsJumping(false);
+	}
 }
 
 void ASCharacter::MoveForward(float val)
@@ -96,7 +81,6 @@ void ASCharacter::MoveForward(float val)
 
 		const FRotator Rotation = bLimitRotation ? GetActorRotation() : Controller->GetControlRotation();
 		const FVector Direction = FRotationMatrix(Rotation).GetUnitAxis(EAxis::X);
-		//const FVector Direction = GetActorForwardVector();
 		AddMovementInput(Direction, val);
 	}
 }
@@ -108,7 +92,63 @@ void ASCharacter::MoveRight(float val)
 
 		const FRotator Rotation = bLimitRotation ? GetActorRotation() : Controller->GetControlRotation();
 		const FVector Direction = FRotationMatrix(Rotation).GetUnitAxis(EAxis::Y);
-		//const FVector Direction = GetActorRightVector();
 		AddMovementInput(Direction, val);
 	}
+}
+
+void ASCharacter::OnStartJump()
+{
+	bPressedJump = true;
+
+	SetIsJumping(true);
+}
+
+void ASCharacter::OnStopJump()
+{
+	bPressedJump = false;
+
+}
+
+bool ASCharacter::IsInitiatedJump() const
+{
+	return bIsJumping;
+}
+
+void ASCharacter::ServerSetJumping_Implementation(bool NewTargeting)
+{
+	SetIsJumping(NewTargeting);
+}
+
+bool ASCharacter::ServerSetJumping_Validate(bool NewTargeting)
+{
+	return true;
+}
+
+void ASCharacter::OnCrouchToggle()
+{
+	if (CanCrouch()) {
+		Crouch();
+	}
+	else {
+		UnCrouch();
+	}
+}
+
+void ASCharacter::SetIsJumping(bool NewJumping)
+{
+	if (bIsCrouched && NewJumping) {
+		UnCrouch();
+	}else 
+		bIsJumping = NewJumping;
+
+	if (Role < ROLE_Authority) {
+		ServerSetJumping(NewJumping);
+	}
+}
+
+void ASCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> &OutLifetimeProps)const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	//DOREPLIFETIME(ASCharacter, bIsJumping);
+	DOREPLIFETIME_CONDITION( ASCharacter, bIsJumping, COND_SkipOwner);
 }
