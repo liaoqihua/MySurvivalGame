@@ -9,7 +9,7 @@
 
 
 ASCharacter::ASCharacter(const FObjectInitializer &ObjectInitializer)
-	:Super(ObjectInitializer.SetDefaultSubobjectClass<USCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
+	:Super(ObjectInitializer.SetDefaultSubobjectClass<USCharacterMovementComponent>(ACharacter::CharacterMovementComponentName)), SprintingSpeedScale(2.5f)
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -63,6 +63,8 @@ void ASCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ASCharacter::OnStartJump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ASCharacter::OnStopJump);
 	PlayerInputComponent->BindAction("CrouchToggle", IE_Released, this, &ASCharacter::OnCrouchToggle);
+	PlayerInputComponent->BindAction("SprintHold", IE_Pressed, this, &ASCharacter::OnStartSprinting);
+	PlayerInputComponent->BindAction("SprintHold", IE_Released, this, &ASCharacter::OnStopSprinting);
 }
 
 void ASCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode /* = 0 */)
@@ -134,6 +136,38 @@ void ASCharacter::OnCrouchToggle()
 	}
 }
 
+void ASCharacter::OnStartSprinting()
+{
+	SetIsSprinting(true);
+}
+
+void ASCharacter::OnStopSprinting()
+{
+	SetIsSprinting(false);
+}
+
+void ASCharacter::ServerSetSprinting_Implementation(bool NewTargeting)
+{
+	SetIsSprinting(NewTargeting);
+}
+
+bool ASCharacter::ServerSetSprinting_Validate(bool NewTargeting)
+{
+	return true;
+}
+
+bool ASCharacter::IsInitiatedSprinting() const
+{
+	if (!GetCharacterMovement()) return false;
+
+	return bIsSprinting && !GetVelocity().IsZero() && FVector::DotProduct(GetVelocity().GetSafeNormal2D(), GetActorRotation().Vector()) > 0.8f;
+}
+
+float ASCharacter::GetSprintingSpeedScale() const
+{
+	return SprintingSpeedScale;
+}
+
 void ASCharacter::SetIsJumping(bool NewJumping)
 {
 	if (bIsCrouched && NewJumping) {
@@ -146,9 +180,22 @@ void ASCharacter::SetIsJumping(bool NewJumping)
 	}
 }
 
+void ASCharacter::SetIsSprinting(bool NewSprinting)
+{
+	bIsSprinting = NewSprinting;
+	if (bIsCrouched && NewSprinting) {
+		UnCrouch();
+	}
+
+	if (Role < ROLE_Authority) {
+		ServerSetSprinting(NewSprinting);
+	}
+}
+
 void ASCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultAllocator> &OutLifetimeProps)const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 	//DOREPLIFETIME(ASCharacter, bIsJumping);
-	DOREPLIFETIME_CONDITION( ASCharacter, bIsJumping, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(ASCharacter, bIsJumping, COND_SkipOwner);
+	DOREPLIFETIME_CONDITION(ASCharacter, bIsSprinting, COND_SkipOwner);
 }

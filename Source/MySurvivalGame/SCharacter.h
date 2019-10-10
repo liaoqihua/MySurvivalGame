@@ -40,9 +40,19 @@ public:
 		void ServerSetJumping(bool NewTargeting);
 	UFUNCTION()
 		void OnCrouchToggle();
-
+	UFUNCTION()
+		void OnStartSprinting();
+	UFUNCTION()
+		void OnStopSprinting();
+	UFUNCTION(Server, Reliable, WithValidation)
+		void ServerSetSprinting(bool NewTargeting);
+	UFUNCTION(BlueprintCallable, Category = Movement)
+		bool IsInitiatedSprinting() const;
+	UFUNCTION(BlueprintCallable, Category = Movement)
+		float GetSprintingSpeedScale() const;
 public:
 	void SetIsJumping(bool NewJumping);
+	void SetIsSprinting(bool NewSprintint);
 
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
@@ -51,4 +61,8 @@ public:
 		UCameraComponent *Camera;
 	UPROPERTY(Transient, Replicated)
 		bool bIsJumping;
+	UPROPERTY(Transient, Replicated)
+		bool bIsSprinting;
+	UPROPERTY(EditDefaultsOnly, Category = Movement)
+		float SprintingSpeedScale;
 };

@@ -14,7 +14,8 @@ class MYSURVIVALGAME_API USCharacterMovementComponent : public UCharacterMovemen
 {
 	GENERATED_BODY()
 	
-	
+public:
+	virtual float GetMaxSpeed() const;
 	
 	
 };
