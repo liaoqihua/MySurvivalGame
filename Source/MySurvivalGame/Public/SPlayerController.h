@@ -12,7 +12,7 @@
 UCLASS()
 class MYSURVIVALGAME_API ASPlayerController : public APlayerController
 {
-	GENERATED_BODY()
+	GENERATED_UCLASS_BODY()
 	
 	
 	

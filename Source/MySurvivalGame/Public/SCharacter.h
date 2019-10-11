@@ -50,9 +50,23 @@ public:
 		bool IsInitiatedSprinting() const;
 	UFUNCTION(BlueprintCallable, Category = Movement)
 		float GetSprintingSpeedScale() const;
+	UFUNCTION(BlueprintCallable, Category = Movement)
+		float GetTargetingSpeedScale() const;
+	UFUNCTION(Server, Reliable, WithValidation)
+		void ServerUse();
+	UFUNCTION(BlueprintCallable, Category = Targeting)
+		bool IsTargeting() const;
+	UFUNCTION(Server, Reliable, WithValidation)
+		void ServerSetTargeting(bool NewTargeting);
+
 public:
 	void SetIsJumping(bool NewJumping);
 	void SetIsSprinting(bool NewSprintint);
+	class ASUsableActor *GetUsableView();
+	void Use();
+	void OnStartTargeting();
+	void OnStopTargeting();
+	void SetTargeting(bool NewTargeting);
 
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
@@ -65,4 +79,14 @@ public:
 		bool bIsSprinting;
 	UPROPERTY(EditDefaultsOnly, Category = Movement)
 		float SprintingSpeedScale;
+	UPROPERTY(EditDefaultsOnly, Category = Movement)
+		float TargetingSpeedScale;
+	UPROPERTY(EditDefaultsOnly, Category = ObjectInteraction)
+		float MaxUseDistance;
+	UPROPERTY(Transient, Replicated)
+		bool bIsTargeting;
+private:
+	bool bHasNewFocus;
+	UPROPERTY()
+		class ASUsableActor *FocusedUsableActor;
 };
