@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include <GameFramework/SpringArmComponent.h>
 #include <Camera/CameraComponent.h>
+#include "Stypes.h"
 #include "SCharacter.generated.h"
 
 UCLASS()
@@ -26,6 +27,11 @@ public:
 
 	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode /* = 0 */) override;
 	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
+	virtual bool CanDie(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) const;
+	virtual bool Die(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser);
+	virtual void OnDeath(float Damage, struct FDamageEvent const& DamageEvent, APawn* EventInstigator, AActor* DamageCauser);
+	virtual void PlayHit(float Damage, struct FDamageEvent const& DamageEvent, APawn* EventInstigator, AActor* DamageCauser, bool bKilled);
 public:
 	UFUNCTION()
 		void MoveForward(float val);
@@ -73,6 +79,10 @@ public:
 		void ConsumeFood(float AmountRestored);
 	UFUNCTION(BlueprintCallable, Category = PlayerCondition)
 		bool IsAlive() const;
+	UFUNCTION()
+		virtual void ReplicateHit(float Damage, struct FDamageEvent const& DamageEvent, APawn* EventInstigator, AActor* DamageCauser, bool bKilled);
+	UFUNCTION()
+		void OnRep_LastTakeHitInfo();
 public:
 	void SetIsJumping(bool NewJumping);
 	void SetIsSprinting(bool NewSprintint);
@@ -82,6 +92,8 @@ public:
 	void OnStopTargeting();
 	void SetTargeting(bool NewTargeting);
 	void IncrementHunger();
+	void SetRagdollPhysics();
+	void StopAllAnimMontages();
 
 public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
@@ -131,6 +143,13 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = PlayerCondition)
 		TSubclassOf<UDamageType> HungerDamageType;
+
+	// «∑ÒÀ¿Õˆ
+	bool bIsDying;
+
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_LastTakeHitInfo)
+		struct FTakeHitInfo LastTakeHitInfo;
+
 private:
 	bool bHasNewFocus;
 	UPROPERTY()
