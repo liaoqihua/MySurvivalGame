@@ -9,6 +9,8 @@
 #include "Stypes.h"
 #include "SCharacter.generated.h"
 
+class ASWeapon;
+
 UCLASS()
 class MYSURVIVALGAME_API ASCharacter : public ACharacter
 {
@@ -154,4 +156,97 @@ private:
 	bool bHasNewFocus;
 	UPROPERTY()
 		class ASUsableActor *FocusedUsableActor;
+
+public:
+	//开始射击
+	UFUNCTION()
+		void OnStartFire();
+
+	//停止射击
+	UFUNCTION()
+		void OnStopFire();
+
+	//切换下一个武器
+	UFUNCTION()
+		void OnNextWeapon();
+
+	//切换前一个武器
+	UFUNCTION()
+		void OnPrevWeapon();
+
+	//装备主武器
+	UFUNCTION()
+		void OnEquipPrimaryWeapon();
+
+	//装备副武器
+	UFUNCTION()
+		void OnEquipSecondWeapon();
+
+	//开始射击
+		void StartWeaponFire();
+	//停止射击
+		void StopWeaponFire();
+	//清空背包
+		void DestroyInventory();
+
+	//丢弃武器
+	UFUNCTION()
+		void DropWeapon();
+	//服务器丢弃武器
+	UFUNCTION(Server, Reliable, WithValidation)
+		void ServerDropWeapon();
+
+	//修改CurrentWeapon后调用的函数
+	UFUNCTION()
+		void OnRep_CurrentWeapon();
+
+	//检测特定的Slot是否有效，限定一个类型一个对象
+	bool WeaponSlotAvailable(EInventorySlot CheckSlot);
+
+	//能否开火
+	bool CanFire() const;
+	
+	//是否在开火
+	UFUNCTION(BlueprintCallable, Category = Weapon)
+		bool IsFiring() const;
+
+	//返回背包挂载点名称
+	FName GetInventoryAttachPoint(EInventorySlot Slot);
+
+	//设置当前使用的武器
+	void SetCurrentWeapon(ASWeapon *NewWeapon, ASWeapon *LastWeapon = nullptr);
+
+	//装备武器
+	void EquipWeapon(ASWeapon *NewWeapon);
+
+	//网络装备武器
+	UFUNCTION(Server, Reliable, WithValidation)
+		void ServerEquipWeapon(ASWeapon *NewWeapon);
+
+	//向背包添加一个武器
+	void AddWeapon(ASWeapon *Weapon);
+
+	//从背包删除一个武器
+	void RemoveWeapon(ASWeapon *Weapon);
+
+private:
+	UPROPERTY(EditDefaultsOnly, Category = Sockets)
+		FName WeaponAttachPoint;
+	UPROPERTY(EditDefaultsOnly, Category = Sockets)
+		FName PelvisAttachPoint;
+	UPROPERTY(EditDefaultsOnly, Category = Sockets)
+		FName SpineAttachPoint;
+	UPROPERTY(EditDefaultsOnly, Category = Inventory)
+		float DropItemDistance;
+
+	bool bWantsToFire;
+
+	UPROPERTY(Transient, Replicated)
+		TArray<ASWeapon*> Inventory;
+
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_CurrentWeapon)
+		ASWeapon *CurrentWeapon;
+
+	UPROPERTY(EditDefaultsOnly, Category = Inventory)
+		TArray<TSubclassOf<ASWeapon>> DefaultInventoryClasses;
 };

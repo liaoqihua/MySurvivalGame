@@ -39,7 +39,7 @@ public:
 
 public:
 	EWeaponState GetCurrentState() const;
-	FORCEINLINE EInventorySlot GetStorageSlot()
+	FORCEINLINE EInventorySlot GetStorageSlot() const
 	{
 		return StorageSlot;
 	}
