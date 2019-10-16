@@ -3,21 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SUsableActor.h"
-#include "SPickUpActor.generated.h"
+#include "Items/SPickUpActor.h"
+#include "SWeapon.h"
+#include "SWeaponPickUp.generated.h"
 
 /**
  * 
  */
 UCLASS()
-class MYSURVIVALGAME_API ASPickUpActor : public ASUsableActor
+class MYSURVIVALGAME_API ASWeaponPickUp : public ASPickUpActor
 {
 	GENERATED_UCLASS_BODY()
-	
+
 public:
 	virtual void OnUsed(APawn *InstigatorPawn) override;
 
 public:
-	UPROPERTY(EditDefaultsOnly, Category = PickUpSound)
-		class USoundCue *PickUpSound;
+	UPROPERTY(EditDefaultsOnly)
+		TSubclassOf<ASWeapon> WeaponClass;
+	
 };
