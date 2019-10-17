@@ -198,7 +198,7 @@ public:
 
 	//修改CurrentWeapon后调用的函数
 	UFUNCTION()
-		void OnRep_CurrentWeapon();
+		void OnRep_CurrentWeapon(ASWeapon *LastWeapon);
 
 	//检测特定的Slot是否有效，限定一个类型一个对象
 	bool WeaponSlotAvailable(EInventorySlot CheckSlot);
