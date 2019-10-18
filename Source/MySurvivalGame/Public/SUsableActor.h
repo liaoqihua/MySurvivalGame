@@ -28,7 +28,7 @@ public:
 		virtual void OnEndFocus();
 	UFUNCTION(BlueprintCallable, Category = Interface)
 		virtual void OnUsed(APawn *Pawn);
-
+	FORCEINLINE UStaticMeshComponent* GetUsableMeshComponent() const { return MeshComp; }
 protected:
 	UPROPERTY(VisibleAnywhere, Category = Mesh)
 		UStaticMeshComponent *MeshComp;

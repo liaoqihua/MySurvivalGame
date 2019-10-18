@@ -7,6 +7,11 @@
 #include "Stypes.h"
 #include "SWeapon.generated.h"
 
+class UAudioComponent;
+class USoundCue;
+class UAnimMontage;
+class ASWeaponPickUp;
+
 UENUM()
 enum EWeaponState
 {
@@ -66,4 +71,54 @@ public:
 private:
 	EWeaponState CurrentState;
 	EInventorySlot StorageSlot;
+
+public:
+	//装备武器
+	virtual void OnEquip();
+
+	//卸载武器
+	virtual void OnUnEquip();
+
+	virtual void OnEquipFinished();
+	
+	UAudioComponent *PlayWeaponSound(USoundCue *SoundToPlay);
+
+	void SetWeaponState(EWeaponState NewState);
+
+	//确定当前武器状态
+	void DetermineWeaponState();
+
+	float PlayWeaponAnimation(UAnimMontage *Animation, float InPlayRate = 1.f, FName StartSectionName = NAME_None);
+
+	void StopWeaponAnimation(UAnimMontage *Animation);
+
+	virtual void OnLeaveInventory();
+
+	bool IsEquiped() const;
+
+	bool IsAttachedToPawn() const;
+public:
+	//上次武器切换时间
+	float EquipStartedTime;
+
+	//武器装备花费时间
+	float EquipDuration;
+
+	//是否装备
+	bool bIsEquiped;
+
+	//是否在装备过程中
+	bool bPendingEquip;
+
+	FTimerHandle FiringTimerHandle;
+	FTimerHandle EquipFinishedTimerHandle;
+
+	UPROPERTY(EditDefaultsOnly, Category = EquipSounds)
+		USoundCue *EquipSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = EquipAnim)
+		UAnimMontage *EquipAnim;
+
+	UPROPERTY(EditDefaultsOnly)
+		TSubclassOf<ASWeaponPickUp> WeaponPickupClass;
 };
