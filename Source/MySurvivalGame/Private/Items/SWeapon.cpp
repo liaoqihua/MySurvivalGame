@@ -42,6 +42,16 @@ void ASWeapon::Tick(float DeltaTime)
 
 }
 
+USkeletalMeshComponent * ASWeapon::GetWeaponMesh() const
+{
+	return Mesh;
+}
+
+ASCharacter * ASWeapon::GetPawnOwner() const
+{
+	return OwnerPawn;
+}
+
 EWeaponState ASWeapon::GetCurrentState() const
 {
 	return CurrentState;

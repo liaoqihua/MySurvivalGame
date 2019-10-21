@@ -25,7 +25,7 @@ ASCharacter::ASCharacter(const FObjectInitializer &ObjectInitializer)
 	:Super(ObjectInitializer.SetDefaultSubobjectClass<USCharacterMovementComponent>(ACharacter::CharacterMovementComponentName)), SprintingSpeedScale(2.5f), 
 	MaxUseDistance(500.0f), bHasNewFocus(false), FocusedUsableActor(nullptr), bIsTargeting(false), TargetingSpeedScale(0.5f),
 	Health(100.0f), Hunger(0.0f), MaxHunger(100.0f), IncrementHungerAmount(1.0f), IncrementHungerInterval(5.0f), CriticalHungerThreshold(90.0f),HungerDamagePerInterval(1.0f),
-	DropItemDistance(200.0f), 
+	DropItemDistance(50.0f), 
 	HungerDamageType(UDamageType::StaticClass())
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -562,12 +562,22 @@ void ASCharacter::OnNextWeapon()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "OnNextWeapon");
 
+	if (Inventory.Num() > 1) {
+		int index = Inventory.IndexOfByKey(CurrentWeapon);
+		int nextIndex = (index + 1) % Inventory.Num();
+		EquipWeapon(Inventory[nextIndex]);
+	}
 }
 
 void ASCharacter::OnPrevWeapon()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "OnPrevWeapon");
 
+	if (Inventory.Num() > 1) {
+		int index = Inventory.IndexOfByKey(CurrentWeapon);
+		int prevIndex = FMath::Abs(index - 1) % Inventory.Num();
+		EquipWeapon(Inventory[prevIndex]);
+	}
 }
 
 void ASCharacter::OnEquipPrimaryWeapon()
@@ -623,7 +633,7 @@ void ASCharacter::DropWeapon()
 			ASWeaponPickUp* NewWeaponPickup = GetWorld()->SpawnActor<ASWeaponPickUp>(CurrentWeapon->WeaponPickupClass, SpawnLocation, FRotator::ZeroRotator, SpawnInfo);
 			UStaticMeshComponent *MeshComp = NewWeaponPickup->GetUsableMeshComponent();
 			if (MeshComp) {
-				MeshComp->AddTorqueInRadians(FVector(1, 1, 1) * 4000000);
+				MeshComp->AddTorqueInRadians(FVector(1, 1, 1) * 40000);
 			}
 		}
 		else {
@@ -727,11 +737,12 @@ void ASCharacter::AddWeapon(ASWeapon *Weapon)
 
 void ASCharacter::RemoveWeapon(ASWeapon *Weapon)
 {
-	if (CurrentWeapon) {
+	if (Weapon) {
 		if (Inventory.Contains(Weapon))
-			Inventory.Remove(CurrentWeapon);
-		CurrentWeapon->Mesh->SetHiddenInGame(true);
-		CurrentWeapon->Destroy();
+			Inventory.Remove(Weapon);
+		Weapon->Mesh->SetHiddenInGame(true);
+		Weapon->Destroy();
+
 		SetCurrentWeapon(nullptr);
 		if (Inventory.Num()) EquipWeapon(Inventory[0]);
 	}

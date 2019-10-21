@@ -38,6 +38,12 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	UFUNCTION(BlueprintCallable, Category = Weapon)
+		USkeletalMeshComponent *GetWeaponMesh() const;
+
+	UFUNCTION(BlueprintCallable, Category = Weapon)
+		ASCharacter *GetPawnOwner() const;
+
 public:
 	UPROPERTY(VisibleDefaultsOnly, Category = Components)
 		USkeletalMeshComponent *Mesh;
@@ -68,7 +74,7 @@ public:
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_OwnerPawn)
 		ASCharacter *OwnerPawn;
 
-private:
+protected:
 	EWeaponState CurrentState;
 	EInventorySlot StorageSlot;
 
