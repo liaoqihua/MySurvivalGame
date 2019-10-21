@@ -544,6 +544,7 @@ void ASCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultA
 	DOREPLIFETIME(ASCharacter, Hunger);
 	DOREPLIFETIME(ASCharacter, LastTakeHitInfo);
 	DOREPLIFETIME(ASCharacter, CurrentWeapon);
+	DOREPLIFETIME(ASCharacter, Inventory);
 }
 
 void ASCharacter::OnStartFire()
@@ -729,7 +730,7 @@ void ASCharacter::AddWeapon(ASWeapon *Weapon)
 		Weapon->OnEnterInventory(this);
 		Inventory.AddUnique(Weapon);
 
-		if (Inventory.Num()) {
+		if (!CurrentWeapon && Inventory.Num()) {
 			EquipWeapon(Inventory[0]);
 		}
 	}

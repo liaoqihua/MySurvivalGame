@@ -50,7 +50,7 @@ private:
 
 public:
 	UFUNCTION()
-		void OnRep_IsActive();
+		void OnRep_IsActive(bool prevActive);
 
 public:
 	UPROPERTY(EditDefaultsOnly, Category = Material)

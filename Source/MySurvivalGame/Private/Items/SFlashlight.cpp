@@ -6,6 +6,8 @@
 #include "Components/SpotLightComponent.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SceneComponent.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetStringLibrary.h"
 
 
 ASFlashlight::ASFlashlight(const FObjectInitializer &ObjectInitializer)
@@ -24,12 +26,12 @@ ASFlashlight::ASFlashlight(const FObjectInitializer &ObjectInitializer)
 	SpotLightComp->SetupAttachment(GetWeaponMesh(), LightAttachPoint);
 	SpotLightComp->SetCastShadows(false);
 	SpotLightComp->SetRelativeRotation(FRotator(0, 0, 0));
-
 }
 
 void ASFlashlight::BeginPlay()
 {
 	Super::BeginPlay();
+	UpdateLight(false);
 }
 
 void ASFlashlight::OnConstruction(const FTransform& Transform)
@@ -73,8 +75,6 @@ void ASFlashlight::OnLeaveInventory()
 
 void ASFlashlight::UpdateLight(bool Enabled)
 {
-	if (bIsActive == Enabled) return;
-
 	if (MID) {
 		if (Enabled)
 			MID->SetScalarParameterValue(EmissiveParamName, MaxEmissiveIntensity);
@@ -88,8 +88,10 @@ void ASFlashlight::UpdateLight(bool Enabled)
 	bIsActive = Enabled;
 }
 
-void ASFlashlight::OnRep_IsActive()
+void ASFlashlight::OnRep_IsActive(bool prevActive)
 {
+	if (prevActive != bIsActive && Role < ROLE_Authority)
+		UpdateLight(bIsActive);
 }
 
 void ASFlashlight::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
