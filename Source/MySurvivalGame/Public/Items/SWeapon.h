@@ -127,4 +127,91 @@ public:
 
 	UPROPERTY(EditDefaultsOnly)
 		TSubclassOf<ASWeaponPickUp> WeaponPickupClass;
+
+//武器开火
+public:
+	void StartFire();
+
+	void StopFire();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+		void ServerStartFire();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+		void ServerStopFire();
+
+	bool CanFire() const;
+
+	void OnBurstStarted();
+
+	void OnBurstFinished();
+
+	//循环射击函数
+	virtual void HandleFiring();
+
+	UFUNCTION(Server, Reliable, WithValidation)
+		void ServerHandleFiring();
+
+	//开火相关效果函数
+	virtual void SimulateWeaponFire();
+	virtual void StopSimulateWeaponFire();
+
+private:
+	bool bWantsToFire;
+	bool bPreventHandleFiring;
+
+protected:
+	//射击间隔
+	UPROPERTY(EditDefaultsOnly)
+		float TimeBetweenShots;
+
+	//上次射击时间
+	float LastFireTime;
+
+	//是否可以再次开火
+	bool bRefiring;
+
+	//开火子弹计数，网络复制，停止开火清空
+	UPROPERTY(Transient, ReplicatedUsing = OnRep_BurstCounter)
+		int32 BurstCounter;
+
+	UFUNCTION()
+		void OnRep_BurstCounter();
+
+//开火特效
+public:
+	UPROPERTY(EditDefaultsOnly, Category = "SimulationFire")
+		USoundCue *FireSound;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SimulationFire")
+		UParticleSystem *MuzzleFX;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SimulationFire")
+		FName MuzzleAttachPoint;
+
+	UPROPERTY(Transient)
+		UParticleSystemComponent *MuzzlePSC;
+
+	UPROPERTY(EditDefaultsOnly, Category = "SimulationFire")
+		UAnimMontage *FireAnim;
+
+	bool bPlayingFireAnim;
+
+protected:
+	virtual void FireWeapon() PURE_VIRTUAL(ASWeapon::FireWeapon(), );
+
+	//获得瞄准的方向
+	FVector GetAdjustedAim() const;
+
+	//获得摄像机前位置
+	FVector GetCameraDamageStartLocation(const FVector &AimDir) const;
+
+	//获得枪口粒子的位置
+	FVector GetMuzzleLocation() const;
+
+	//获得枪口粒子方向
+	FVector GetMuzzleDirection() const;
+
+	//画射线
+	FHitResult WeaponTrace(const FVector &TraceFrom, const FVector &TraceTo) const;
 };

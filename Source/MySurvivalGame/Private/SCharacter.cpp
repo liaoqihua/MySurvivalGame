@@ -549,14 +549,14 @@ void ASCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty, FDefaultA
 
 void ASCharacter::OnStartFire()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "OnStartFire");
+	if (IsInitiatedSprinting()) SetIsSprinting(false);
 
+	StartWeaponFire();
 }
 
 void ASCharacter::OnStopFire()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "OnStopFire");
-
+	StopWeaponFire();
 }
 
 void ASCharacter::OnNextWeapon()
@@ -585,24 +585,45 @@ void ASCharacter::OnEquipPrimaryWeapon()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "EquipPrimaryWeapon");
 
+	if (CurrentWeapon->GetStorageSlot() != EInventorySlot::Primary) {
+		for (ASWeapon *item : Inventory) {
+			if (item->GetStorageSlot() == EInventorySlot::Primary) {
+				EquipWeapon(item);
+				break;
+			}
+		}
+	}
+
 }
 
 void ASCharacter::OnEquipSecondWeapon()
 {
 	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "EquipSecondWeapon");
 
+	if (CurrentWeapon->GetStorageSlot() != EInventorySlot::Secondary) {
+		for (ASWeapon *item : Inventory) {
+			if (item->GetStorageSlot() == EInventorySlot::Secondary) {
+				EquipWeapon(item);
+				break;
+			}
+		}
+	}
 }
 
 void ASCharacter::StartWeaponFire()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "StartWeaponFire");
-
+	if (!bWantsToFire) {
+		bWantsToFire = true;
+		if (CurrentWeapon) CurrentWeapon->StartFire();
+	}
 }
 
 void ASCharacter::StopWeaponFire()
 {
-	GEngine->AddOnScreenDebugMessage(-1, 5.0f, FColor::Red, "StopWeaponFire");
-
+	if (bWantsToFire) {
+		bWantsToFire = false;
+		if (CurrentWeapon) CurrentWeapon->StopFire();
+	}
 }
 
 void ASCharacter::DestroyInventory()

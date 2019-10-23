@@ -9,11 +9,16 @@
 #include <Sound/SoundCue.h>
 #include <TimerManager.h>
 #include <Kismet/GameplayStatics.h>
+#include "SPlayerController.h"
+#include "MySurvivalGame.h"
+#include "DrawDebugHelpers.h"
+#include "Kismet/KismetMathLibrary.h"
 
 
 // Sets default values
 ASWeapon::ASWeapon(const FObjectInitializer &ObjectInitializer)
-	:Super(ObjectInitializer)
+	:Super(ObjectInitializer), bWantsToFire(false), TimeBetweenShots(0.5f), bRefiring(false), BurstCounter(0),
+	MuzzleAttachPoint("MuzzleFlashSocket"), bPlayingFireAnim(false), bPreventHandleFiring(false)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -160,14 +165,28 @@ void ASWeapon::SetWeaponState(EWeaponState NewState)
 	//可能需要做一些开火 开始和结束的特效之类的
 	const EWeaponState PrevState = CurrentState;
 
+	//停止发射
+	if (PrevState == Firing && NewState != Firing) {
+		//UKismetSystemLibrary::PrintString(GetWorld(), FString(TEXT("OnWeaponFinish")), true, true, FLinearColor::MakeRandomColor(), 15.0f);
+		OnBurstFinished();
+	}
+
 	CurrentState = NewState;
+
+	//开始发射
+	if (PrevState != Firing && NewState == Firing) {
+		//UKismetSystemLibrary::PrintString(GetWorld(), FString(TEXT("OnWeaponStart")), true, true, FLinearColor::MakeRandomColor(), 15.0f);
+		OnBurstStarted();
+	}
+
+	//CurrentState = NewState;
 }
 
 void ASWeapon::DetermineWeaponState()
 {
 	EWeaponState NewState = Idle;
 	if (bIsEquiped) {
-		NewState = Firing;
+		if (bWantsToFire && CanFire()) NewState = Firing;
 	}
 	else if (bPendingEquip) {
 		NewState = Equipping;
@@ -214,9 +233,223 @@ bool ASWeapon::IsAttachedToPawn() const
 	return bIsEquiped || bPendingEquip;
 }
 
+void ASWeapon::StartFire()
+{
+	if (Role < ROLE_Authority) {
+		ServerStartFire();
+	}
+
+	if (!bWantsToFire) {
+		bWantsToFire = true;
+		bPreventHandleFiring = false;
+		DetermineWeaponState();
+	}
+}
+
+void ASWeapon::StopFire()
+{
+	if (Role < ROLE_Authority) {
+		ServerStopFire();
+	}
+
+	if (bWantsToFire) {
+		bWantsToFire = false;
+		bPreventHandleFiring = false;
+		DetermineWeaponState();
+	}
+}
+
+void ASWeapon::ServerStartFire_Implementation()
+{
+	StartFire();
+}
+
+bool ASWeapon::ServerStartFire_Validate()
+{
+	return true;
+}
+
+void ASWeapon::ServerStopFire_Implementation()
+{
+	StopFire();
+}
+
+bool ASWeapon::ServerStopFire_Validate()
+{
+	return true;
+}
+
+bool ASWeapon::CanFire() const
+{
+	bool bPawnCanFire = OwnerPawn && OwnerPawn->CanFire();
+	bool bStatOk = CurrentState == EWeaponState::Idle || CurrentState == EWeaponState::Firing;
+
+	return bPawnCanFire && bStatOk;
+}
+
+void ASWeapon::OnBurstStarted()
+{
+	const float NowTime = GetWorld()->GetTimeSeconds();
+	if (LastFireTime > 0.0f && TimeBetweenShots > 0.0f && LastFireTime + TimeBetweenShots > NowTime) {
+		GetWorldTimerManager().SetTimer(FiringTimerHandle, this, &ASWeapon::HandleFiring, LastFireTime + TimeBetweenShots - NowTime, false);
+	}else HandleFiring();
+}
+
+void ASWeapon::OnBurstFinished()
+{
+	BurstCounter = 0;
+
+	if (GetNetMode() != NM_DedicatedServer) StopSimulateWeaponFire();
+
+	GetWorldTimerManager().ClearTimer(FiringTimerHandle);
+	bRefiring = false;
+}
+
+void ASWeapon::HandleFiring()
+{
+	UKismetSystemLibrary::PrintString(GetWorld(), FString(TEXT("HandleFiring")), true, true, FLinearColor::MakeRandomColor(), 15.0f);
+	if (CanFire())
+	{
+		if (GetNetMode() != NM_DedicatedServer)
+		{
+			SimulateWeaponFire();
+		}
+		if (OwnerPawn && OwnerPawn->IsLocallyControlled())
+		{
+			FireWeapon();
+			// TODO: Consume Ammo
+			// Update firing FX on remote clients if this is called on server
+			BurstCounter++;
+		}
+	}
+
+	if (OwnerPawn && OwnerPawn->IsLocallyControlled()) {
+		if (Role < ROLE_Authority && bPreventHandleFiring) {
+			ServerHandleFiring();
+		}
+		else if (!bPreventHandleFiring ) bPreventHandleFiring = true;
+
+		bRefiring = (CurrentState == Firing && TimeBetweenShots > 0.0f);
+		if (bRefiring) {
+			GetWorldTimerManager().SetTimer(FiringTimerHandle, this, &ASWeapon::HandleFiring, TimeBetweenShots, false);
+		}
+	}
+
+	LastFireTime = GetWorld()->GetTimeSeconds();
+}
+
+void ASWeapon::SimulateWeaponFire()
+{
+	UKismetSystemLibrary::PrintString(GetWorld(), FString(TEXT("SimulateWeaponFire")), true, true, FLinearColor::MakeRandomColor(), 15.0f);
+
+	if (MuzzleFX) {
+		MuzzlePSC = UGameplayStatics::SpawnEmitterAttached(MuzzleFX, Mesh, MuzzleAttachPoint);
+	}
+
+	if (!bPlayingFireAnim) {
+		if (FireAnim)
+			PlayWeaponAnimation(FireAnim);
+		bPlayingFireAnim = true;
+	}
+
+	if (FireSound) PlayWeaponSound(FireSound);
+}
+
+void ASWeapon::StopSimulateWeaponFire()
+{
+	UKismetSystemLibrary::PrintString(GetWorld(), FString(TEXT("StopSimulateWeaponFires")), true, true, FLinearColor::MakeRandomColor(), 15.0f);
+
+	if (bPlayingFireAnim) {
+		if (FireAnim)
+			StopWeaponAnimation(FireAnim);
+		bPlayingFireAnim = false;
+	}
+}
+
+void ASWeapon::OnRep_BurstCounter()
+{
+	if (BurstCounter > 0) {
+		SimulateWeaponFire();
+	}
+	else {
+		StopSimulateWeaponFire();
+	}
+}
+
+FVector ASWeapon::GetAdjustedAim() const
+{
+	ASPlayerController *PC = OwnerPawn ? Cast<ASPlayerController>(OwnerPawn->Controller) : nullptr;
+	FVector OutForward = FVector::ZeroVector;
+	FRotator DummyRot;
+	if (PC) {
+		PC->GetPlayerViewPoint(OutForward, DummyRot);
+
+		OutForward = DummyRot.Vector();
+	}
+	else {
+		DummyRot = Mesh->GetComponentRotation();
+		OutForward = UKismetMathLibrary::GetRightVector(DummyRot);
+	}
+	return OutForward;
+}
+
+FVector ASWeapon::GetCameraDamageStartLocation(const FVector & AimDir) const
+{
+	ASPlayerController *PC = OwnerPawn ? Cast<ASPlayerController>(OwnerPawn->Controller) : nullptr;
+	FVector OutStartTrace = FVector::ZeroVector;
+	if (PC) {
+		FRotator DummyRot;
+		PC->GetPlayerViewPoint(OutStartTrace, DummyRot);
+
+		FVector RawLocation = OwnerPawn->GetActorLocation();
+		OutStartTrace += FVector::DotProduct(RawLocation - OutStartTrace, DummyRot.Vector()) * DummyRot.Vector();
+	}
+
+	return OutStartTrace;
+}
+
+FVector ASWeapon::GetMuzzleLocation() const
+{
+	return FVector();
+}
+
+FVector ASWeapon::GetMuzzleDirection() const
+{
+	return FVector();
+}
+
+FHitResult ASWeapon::WeaponTrace(const FVector & TraceFrom, const FVector & TraceTo) const
+{
+	FCollisionQueryParams TraceParams(TEXT("WeaponTrace"), true, Instigator);
+	TraceParams.bTraceAsyncScene = true;
+	TraceParams.bReturnPhysicalMaterial = true;
+
+	FHitResult Hit(ForceInit);
+
+	GetWorld()->LineTraceSingleByChannel(Hit, TraceFrom, TraceTo, COLLISION_WEAPON, TraceParams);
+	DrawDebugLine(GetWorld(), TraceFrom, TraceTo, FColor::Red, true);
+
+	return FHitResult();
+}
+
+void ASWeapon::ServerHandleFiring_Implementation()
+{
+	const bool bShouldUpdateAmmo = CanFire();
+	HandleFiring();
+	if (bShouldUpdateAmmo) {
+		BurstCounter++;
+	}
+}
+
+bool ASWeapon::ServerHandleFiring_Validate()
+{
+	return true;
+}
+
 void ASWeapon::GetLifetimeReplicatedProps(class TArray<class FLifetimeProperty, class FDefaultAllocator> &OutLifetimeProps)const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(ASWeapon, OwnerPawn);
+	DOREPLIFETIME_CONDITION(ASWeapon, BurstCounter, COND_SkipOwner);
 }

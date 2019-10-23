@@ -76,11 +76,7 @@ void ASFlashlight::OnLeaveInventory()
 void ASFlashlight::UpdateLight(bool Enabled)
 {
 	if (MID) {
-		if (Enabled)
-			MID->SetScalarParameterValue(EmissiveParamName, MaxEmissiveIntensity);
-		else {
-			MID->SetScalarParameterValue(EmissiveParamName, 0);
-		}
+		MID->SetScalarParameterValue(EmissiveParamName, Enabled ? MaxEmissiveIntensity : 0.0f);
 		SpotLightComp->SetVisibility(Enabled);
 		LightConeComp->SetVisibility(Enabled);
 	}
