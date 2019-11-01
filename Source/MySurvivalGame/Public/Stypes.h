@@ -31,7 +31,7 @@ struct FTakeHitInfo
 		UClass* DamageTypeClass;
 
 	UPROPERTY()
-		TWeakObjectPtr<class ASCharacter> PawnInstigator;
+		TWeakObjectPtr<class ASBaseCharacter> PawnInstigator;
 
 	UPROPERTY()
 		TWeakObjectPtr<class AActor> DamageCauser;
@@ -113,4 +113,11 @@ public:
 	{
 		EnsureReplicationByte++;
 	}
+};
+
+UENUM()
+enum class EBotBehaviorType : uint8
+{
+	Passive,
+	Patrolling
 };

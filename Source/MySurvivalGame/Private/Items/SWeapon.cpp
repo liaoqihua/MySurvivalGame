@@ -12,13 +12,14 @@
 #include "SPlayerController.h"
 #include "MySurvivalGame.h"
 #include "DrawDebugHelpers.h"
+#include "Particles/ParticleSystem.h"
 #include "Kismet/KismetMathLibrary.h"
 
 
 // Sets default values
 ASWeapon::ASWeapon(const FObjectInitializer &ObjectInitializer)
 	:Super(ObjectInitializer), bWantsToFire(false), TimeBetweenShots(0.5f), bRefiring(false), BurstCounter(0),
-	MuzzleAttachPoint("MuzzleFlashSocket"), bPlayingFireAnim(false), bPreventHandleFiring(false)
+	MuzzleAttachPoint("MuzzleFlashSocket"), bPlayingFireAnim(false)
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -241,7 +242,6 @@ void ASWeapon::StartFire()
 
 	if (!bWantsToFire) {
 		bWantsToFire = true;
-		bPreventHandleFiring = false;
 		DetermineWeaponState();
 	}
 }
@@ -254,7 +254,6 @@ void ASWeapon::StopFire()
 
 	if (bWantsToFire) {
 		bWantsToFire = false;
-		bPreventHandleFiring = false;
 		DetermineWeaponState();
 	}
 }
@@ -292,7 +291,9 @@ void ASWeapon::OnBurstStarted()
 	const float NowTime = GetWorld()->GetTimeSeconds();
 	if (LastFireTime > 0.0f && TimeBetweenShots > 0.0f && LastFireTime + TimeBetweenShots > NowTime) {
 		GetWorldTimerManager().SetTimer(FiringTimerHandle, this, &ASWeapon::HandleFiring, LastFireTime + TimeBetweenShots - NowTime, false);
-	}else HandleFiring();
+	}
+	else HandleFiring();
+
 }
 
 void ASWeapon::OnBurstFinished()
@@ -307,7 +308,7 @@ void ASWeapon::OnBurstFinished()
 
 void ASWeapon::HandleFiring()
 {
-	UKismetSystemLibrary::PrintString(GetWorld(), FString(TEXT("HandleFiring")), true, true, FLinearColor::MakeRandomColor(), 15.0f);
+	UKismetSystemLibrary::PrintString(GetWorld(), FString(TEXT("HandleFiring")), true, true, FLinearColor::Red, 15.0f);
 	if (CanFire())
 	{
 		if (GetNetMode() != NM_DedicatedServer)
@@ -324,10 +325,7 @@ void ASWeapon::HandleFiring()
 	}
 
 	if (OwnerPawn && OwnerPawn->IsLocallyControlled()) {
-		if (Role < ROLE_Authority && bPreventHandleFiring) {
-			ServerHandleFiring();
-		}
-		else if (!bPreventHandleFiring ) bPreventHandleFiring = true;
+		if (Role < ROLE_Authority) ServerHandleFiring();
 
 		bRefiring = (CurrentState == Firing && TimeBetweenShots > 0.0f);
 		if (bRefiring) {
@@ -378,7 +376,7 @@ void ASWeapon::OnRep_BurstCounter()
 
 FVector ASWeapon::GetAdjustedAim() const
 {
-	ASPlayerController *PC = OwnerPawn ? Cast<ASPlayerController>(OwnerPawn->Controller) : nullptr;
+	ASPlayerController *PC = Instigator ? Cast<ASPlayerController>(Instigator->Controller) : nullptr;
 	FVector OutForward = FVector::ZeroVector;
 	FRotator DummyRot;
 	if (PC) {
@@ -386,9 +384,8 @@ FVector ASWeapon::GetAdjustedAim() const
 
 		OutForward = DummyRot.Vector();
 	}
-	else {
-		DummyRot = Mesh->GetComponentRotation();
-		OutForward = UKismetMathLibrary::GetRightVector(DummyRot);
+	else if(Instigator){
+		OutForward = OwnerPawn->GetBaseAimRotation().Vector();
 	}
 	return OutForward;
 }
@@ -410,12 +407,12 @@ FVector ASWeapon::GetCameraDamageStartLocation(const FVector & AimDir) const
 
 FVector ASWeapon::GetMuzzleLocation() const
 {
-	return FVector();
+	return Mesh->GetSocketLocation(MuzzleAttachPoint);
 }
 
 FVector ASWeapon::GetMuzzleDirection() const
 {
-	return FVector();
+	return Mesh->GetSocketRotation(MuzzleAttachPoint).Vector();
 }
 
 FHitResult ASWeapon::WeaponTrace(const FVector & TraceFrom, const FVector & TraceTo) const
@@ -427,9 +424,9 @@ FHitResult ASWeapon::WeaponTrace(const FVector & TraceFrom, const FVector & Trac
 	FHitResult Hit(ForceInit);
 
 	GetWorld()->LineTraceSingleByChannel(Hit, TraceFrom, TraceTo, COLLISION_WEAPON, TraceParams);
-	DrawDebugLine(GetWorld(), TraceFrom, TraceTo, FColor::Red, true);
+	//DrawDebugLine(GetWorld(), TraceFrom, TraceTo, FColor::Red, true);
 
-	return FHitResult();
+	return Hit;
 }
 
 void ASWeapon::ServerHandleFiring_Implementation()

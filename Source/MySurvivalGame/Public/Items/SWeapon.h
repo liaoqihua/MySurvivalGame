@@ -158,7 +158,6 @@ public:
 
 private:
 	bool bWantsToFire;
-	bool bPreventHandleFiring;
 
 protected:
 	//Éä»÷¼ä¸ô

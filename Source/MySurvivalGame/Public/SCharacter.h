@@ -3,16 +3,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameFramework/Character.h"
 #include <GameFramework/SpringArmComponent.h>
 #include <Camera/CameraComponent.h>
-#include "Stypes.h"
+//#include "Stypes.h"
+#include "SBaseCharacter.h"
 #include "SCharacter.generated.h"
 
 class ASWeapon;
 
 UCLASS()
-class MYSURVIVALGAME_API ASCharacter : public ACharacter
+class MYSURVIVALGAME_API ASCharacter : public ASBaseCharacter
 {
 	GENERATED_UCLASS_BODY()
 
@@ -28,12 +28,12 @@ public:
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode /* = 0 */) override;
-	virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+	//virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
 
-	virtual bool CanDie(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) const;
-	virtual bool Die(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser);
-	virtual void OnDeath(float Damage, struct FDamageEvent const& DamageEvent, APawn* EventInstigator, AActor* DamageCauser);
-	virtual void PlayHit(float Damage, struct FDamageEvent const& DamageEvent, APawn* EventInstigator, AActor* DamageCauser, bool bKilled);
+	//virtual bool CanDie(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) const;
+	//virtual bool Die(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser);
+	virtual void OnDeath(float Damage, struct FDamageEvent const& DamageEvent, APawn* EventInstigator, AActor* DamageCauser) override;
+	//virtual void PlayHit(float Damage, struct FDamageEvent const& DamageEvent, APawn* EventInstigator, AActor* DamageCauser, bool bKilled);
 public:
 	UFUNCTION()
 		void MoveForward(float val);
@@ -69,22 +69,22 @@ public:
 		void ServerSetTargeting(bool NewTargeting);
 	UFUNCTION(BlueprintCallable, Category = Targeting)
 		FRotator GetAimOffsets() const;
-	UFUNCTION(BlueprintCallable, Category = PlayerCondition)
-		float GetHealth() const;
-	UFUNCTION(BlueprintCallable, Category = PlayerCondition)
-		float GetMaxHealth() const;
+	//UFUNCTION(BlueprintCallable, Category = PlayerCondition)
+	//	float GetHealth() const;
+	//UFUNCTION(BlueprintCallable, Category = PlayerCondition)
+	//	float GetMaxHealth() const;
 	UFUNCTION(BlueprintCallable, Category = PlayerCondition)
 		float GetHunger() const;
 	UFUNCTION(BlueprintCallable, Category = PlayerCondition)
 		float GetMaxHunger() const;
 	UFUNCTION(BlueprintCallable, Category = PlayerCondition)
 		void ConsumeFood(float AmountRestored);
-	UFUNCTION(BlueprintCallable, Category = PlayerCondition)
-		bool IsAlive() const;
-	UFUNCTION()
-		virtual void ReplicateHit(float Damage, struct FDamageEvent const& DamageEvent, APawn* EventInstigator, AActor* DamageCauser, bool bKilled);
-	UFUNCTION()
-		void OnRep_LastTakeHitInfo();
+	//UFUNCTION(BlueprintCallable, Category = PlayerCondition)
+	//	bool IsAlive() const;
+	//UFUNCTION()
+	//	virtual void ReplicateHit(float Damage, struct FDamageEvent const& DamageEvent, APawn* EventInstigator, AActor* DamageCauser, bool bKilled);
+	//UFUNCTION()
+	//	void OnRep_LastTakeHitInfo();
 public:
 	void SetIsJumping(bool NewJumping);
 	void SetIsSprinting(bool NewSprintint);
@@ -94,7 +94,7 @@ public:
 	void OnStopTargeting();
 	void SetTargeting(bool NewTargeting);
 	void IncrementHunger();
-	void SetRagdollPhysics();
+	//void SetRagdollPhysics();
 	void StopAllAnimMontages();
 
 public:
@@ -115,9 +115,9 @@ public:
 	UPROPERTY(Transient, Replicated)
 		bool bIsTargeting;
 
-	//当前健康
-	UPROPERTY(EditDefaultsOnly, Category = PlayerCondition, Replicated)
-		float Health;
+	////当前健康
+	//UPROPERTY(EditDefaultsOnly, Category = PlayerCondition, Replicated)
+	//	float Health;
 
 	//当前饥饿
 	UPROPERTY(EditDefaultsOnly, Category = PlayerCondition, Replicated)
@@ -147,10 +147,10 @@ public:
 		TSubclassOf<UDamageType> HungerDamageType;
 
 	//是否死亡
-	bool bIsDying;
+	//bool bIsDying;
 
-	UPROPERTY(Transient, ReplicatedUsing = OnRep_LastTakeHitInfo)
-		struct FTakeHitInfo LastTakeHitInfo;
+	//UPROPERTY(Transient, ReplicatedUsing = OnRep_LastTakeHitInfo)
+	//	struct FTakeHitInfo LastTakeHitInfo;
 
 private:
 	bool bHasNewFocus;
@@ -249,4 +249,26 @@ private:
 
 	UPROPERTY(EditDefaultsOnly, Category = Inventory)
 		TArray<TSubclassOf<ASWeapon>> DefaultInventoryClasses;
+
+	void InitDefaultInventory();
+
+public:
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
+	virtual void PawnClientRestart() override;
+
+	UFUNCTION(BlueprintCallable, Category = "AI")
+		void MakePawnNoise(float Loudness);
+
+private:
+	float LastNoiseLoudness;
+
+	float LastMakeNoiseTime;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "AI")
+		float GetLastNoiseLoudness() const;
+
+	UFUNCTION(BlueprintCallable, Category = "AI")
+		float GetLastMakeNoiseTime() const;
 };
